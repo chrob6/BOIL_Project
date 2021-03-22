@@ -5,3 +5,4 @@ koszt zakupu 3
 jednostkowe koszty transportu 1 dostawca 2
 2 dostawca  2
 3 dostawca 2
+blokada D O
