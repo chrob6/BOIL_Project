@@ -14,6 +14,7 @@ vector<float> demand; //popyt
 vector<float> transport_cost;
 vector<float> sale_price;
 vector<float> purchase_cost;
+vector<float> profits;
 float unitry_cost_trans[deliverers][receivers];
 int block[2];
 
@@ -24,6 +25,7 @@ float** unitry_profit_fun();
 float** route_fun();
 pair<int,int> checkDeliv(); // zwraca dwa inty - "wspó³rzedne" komórki
 void print_supply_demand();
+void calculate_profit();
 float** unitry_profit;
 float** route;
 int** route_done;
@@ -232,6 +234,8 @@ float** route_fun() {
 		}
 		print_supply_demand();
 	}
+	calculate_profit();
+
 	return route;
 }
 
@@ -285,6 +289,24 @@ void print_supply_demand() {
 
 	cout << "Receivers: ";
 	for (auto i : demand) {
+		cout << i << " ";
+	}
+	cout << endl;
+}
+
+void calculate_profit() {
+	float profit = 0;
+
+	for (int i = 0; i < supply.size(); i++) {
+		
+		for (int j = 0; j < demand.size(); j++) {
+			profit += unitry_profit[i][j] * route[i][j];
+		}
+	}
+	
+	profits.push_back(profit);
+	cout << "Profits: ";
+	for (auto i : profits) {
 		cout << i << " ";
 	}
 	cout << endl;
