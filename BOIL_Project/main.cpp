@@ -21,8 +21,9 @@ int block[2];
 bool isBalanced();
 void readFromTxt();
 void saveToTxt();
+void print();
 float** unitry_profit_fun();
-float** route_fun();
+void route_fun();
 pair<int,int> checkDeliv(); // zwraca dwa inty - "wspó³rzedne" komórki
 void print_supply_demand();
 void calculate_profit();
@@ -30,13 +31,40 @@ float** unitry_profit;
 float** route;
 int** route_done;
 
+float* alfa;
+float* beta;
+float** delta;
+void init_alfa_beta();
+void calculate_alfa_beta();
+void print_alfa_beta();
+bool calculate_delta();
+void print_delta();
+pair<int, int> bad_delta();
+pair<int, int>* find_new_cycle(pair<int, int> bad_delta);
+void change_unitary_route(pair<int, int>* cycle);
 
 int main() {
 	
+	bool running = true;
 	readFromTxt();
 	unitry_profit_fun();
 	route_fun();
+
+	while(1) {
+		calculate_profit();
+		init_alfa_beta();
+		calculate_alfa_beta();
+		if (calculate_delta()) {
+			break;
+		}
+		print_delta();
+
+		print();
+		change_unitary_route(find_new_cycle(bad_delta()));
+	}
+
 	saveToTxt();
+	// #coWyWiecieOKomlikowaniuSobieKodu
 
 
 	return 1;
@@ -124,11 +152,22 @@ bool isBalanced() { // zmiana na zwracania float'a z róznica - jak zwraca 0 to j
 void saveToTxt() {
 	ofstream save("wyniki.txt");
 	save << "Profits: "<<endl;
+	cout << "Profits: " << endl;
 	for (auto i : profits) {
+		cout << i << " ";
 		save << i << " ";
 	}
 	save << endl;
+	cout << endl;
 	save.close();
+
+	float max_profit = 0;
+	for (auto i : profits) {
+		if (max_profit < i) {
+			max_profit = i;
+		}
+	}
+	cout << endl << "MAX Profit: " << max_profit <<endl;
 }
 
 
@@ -197,7 +236,7 @@ void print() {
 	}
 }
 
-float** route_fun() {
+void route_fun() {
 
 	int supply_size = sizeof(supply)/sizeof(float);
 	int demand_size = sizeof(demand) / sizeof(float);
@@ -214,9 +253,7 @@ float** route_fun() {
 		}
 	}
 
-
 	route_done[block[0]][block[1]] = 1; // odrazu zablokowanej trasie uniemozliwenie sprawdzenia, sama trasa i tak ma 0;
-
 
 	for (int i = 0; i < supply.size() * demand.size() - 1 ; i++) { //pêtla po wzsystkich elementach w tablicy
 		pair<int, int> cell_to_process = checkDeliv(); //zwracanie komórki, która ma byæ przetwarzana
@@ -240,9 +277,6 @@ float** route_fun() {
 		}
 		print_supply_demand();
 	}
-	calculate_profit();
-
-	return route;
 }
 
 pair<int, int> checkDeliv() {	//przeszukaæ ponownie tablice za wyj¹tkiem tego temp co by³o wczeœnej
@@ -266,7 +300,6 @@ pair<int, int> checkDeliv() {	//przeszukaæ ponownie tablice za wyj¹tkiem tego te
 		route_done[temp_supply][temp_demand] = 1;
 		return pair<int, int>(temp_supply, temp_demand);
 	}
-
 	temp_demand = -1;
 
 	for (int i = 0; i < supply.size(); i++) {
@@ -304,7 +337,6 @@ void calculate_profit() {
 	float profit = 0;
 
 	for (int i = 0; i < supply.size(); i++) {
-		
 		for (int j = 0; j < demand.size(); j++) {
 			profit += unitry_profit[i][j] * route[i][j];
 		}
@@ -316,4 +348,185 @@ void calculate_profit() {
 		cout << i << " ";
 	}
 	cout << endl;
+}
+
+void init_alfa_beta() {
+
+	int supply_size = sizeof(supply) / sizeof(float);
+	int demand_size = sizeof(demand) / sizeof(float);
+
+	alfa = new float[supply_size];
+	beta = new float[supply_size];
+
+	for (int i = 0; i < supply_size; i++) {
+		alfa[i] = -1000000000;
+	}
+
+	for (int i = 0; i < demand_size; i++) {
+		beta[i] = -1000000000;
+	}
+
+	alfa[0] = 0;
+}
+
+void calculate_alfa_beta() {
+
+	int next_index_to_calculate = -1;
+	float try_ = 0;
+	for (int i = 0; i < supply.size(); i++) {
+		for (int j = 0; j < demand.size(); j++) {
+
+			if (route[i][j] != 0) {
+				try_ = unitry_profit[i][j];
+
+				if (beta[j] == -1000000000) {
+					beta[j] = try_ - alfa[i];
+					next_index_to_calculate = j;
+				}
+			}
+		}
+
+		for (int j = 0; j < supply.size(); j++) {
+			cout << next_index_to_calculate << " , " << j << endl;
+			if (route[j][next_index_to_calculate] != 0) {
+				try_ = unitry_profit[j][next_index_to_calculate];
+
+				if (alfa[j] == -1000000000) {
+					alfa[j] = try_ - beta[next_index_to_calculate];
+				}
+			}
+		}
+		print_alfa_beta();
+	}
+
+}
+
+void print_alfa_beta() {
+
+	cout << "alfa: ";
+	for (int i = 0; i < supply.size(); i++) {
+		cout << alfa[i] << " ";
+	}
+	cout << endl;
+
+	cout << "beta: ";
+	for (int i = 0; i < demand.size(); i++) {
+		cout << beta[i] << " ";
+	}
+	cout << endl;
+}
+
+bool calculate_delta() {
+
+	bool final_result = true;
+	int supply_size = sizeof(supply) / sizeof(float);
+	int demand_size = sizeof(demand) / sizeof(float);
+	// za du¿o tych alokacji - trzeba to wszystko zrobiæ w jednej funkcji
+
+	delta = new float* [supply_size];
+
+	for (int i = 0; i < supply.size(); i++) {
+		delta[i] = new float[demand_size];
+
+		for (int j = 0; j < demand.size(); j++) {
+
+			if (route[i][j] == 0) {
+				delta[i][j] = unitry_profit[i][j] - alfa[i] - beta[j];
+				if (delta[i][j] > 0) {
+					final_result = false;
+				}
+			} 
+			else {
+				delta[i][j] = 0;
+			}
+		}
+	}
+	return final_result;
+}
+
+void print_delta() {
+
+	cout << endl << "Delta" << endl;
+	for (int i = 0; i < supply.size() ; i++) {
+		for (int j = 0; j < demand.size(); j++) {
+			cout << delta[i][j] << " ";
+		}
+		cout << endl;
+	}
+
+}
+
+pair<int, int> bad_delta() {
+	cout << endl << " Bad delta" << endl;
+	for (int i = 0; i < supply.size(); i++) {
+		for (int j = 0; j < demand.size(); j++) {
+
+			if (delta[i][j] > -1) {
+				cout << delta[i][j] << " ";
+				return pair<int, int>(i, j);
+			}
+		}
+		cout << endl;
+	}
+	
+	return pair<int, int>(-1, -1);
+}
+
+pair<int, int>* find_new_cycle(pair<int, int> bad_delta) {
+
+	pair<int, int>* cycle_to_change = new pair<int, int>[4];
+
+	if (bad_delta.first == -1 && bad_delta.second == -1) {
+		return cycle_to_change;
+	}
+
+	cycle_to_change[0] = bad_delta;
+
+	for (int k = 0; k < supply.size() * demand.size() - 1; k++) {
+
+		for (int j = 0; j < demand.size(); j++) {
+			if (delta[bad_delta.first][j] == 0) {
+				cycle_to_change[1] = pair<int, int>(bad_delta.first, j);
+			}
+		}
+
+		
+		for (int j = 0; j < supply.size(); j++) {
+			if (delta[j][bad_delta.second] == 0) {
+				cycle_to_change[2] = pair<int, int>(j, bad_delta.second);
+			}
+		}
+
+		if (delta[cycle_to_change[1].second][cycle_to_change[2].first] == 0) {
+			cycle_to_change[3] = pair<int,int> (cycle_to_change[2].first, cycle_to_change[1].second);
+		}
+	}
+
+	cout << endl << "Cycle to change" << endl;
+	for (int j = 0; j <4; j++) {
+		cout << cycle_to_change[j].first << cycle_to_change[j].second << endl;
+	}
+
+	return cycle_to_change;
+}
+
+void change_unitary_route(pair<int, int>* cycle) {
+	// 00 02 10 21
+
+	float value_to_cycle; 
+	if (route[cycle[1].first][cycle[1].second] <= route[cycle[2].first][cycle[2].second]) {
+		value_to_cycle = route[cycle[1].first][cycle[1].second];
+	}
+	else {
+		value_to_cycle = route[cycle[2].first][cycle[2].second];
+	}
+
+
+	route[cycle[0].first][cycle[0].second] = route[cycle[0].first][cycle[0].second] + value_to_cycle;
+	route[cycle[2].first][cycle[2].second] = route[cycle[2].first][cycle[2].second] - value_to_cycle;
+
+	route[cycle[1].first][cycle[1].second] = route[cycle[1].first][cycle[1].second] - value_to_cycle;
+	route[cycle[3].first][cycle[3].second] = route[cycle[3].first][cycle[3].second] + value_to_cycle;
+
+	print();
 }
