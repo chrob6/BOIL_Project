@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 using namespace std;
 
@@ -15,14 +16,18 @@ vector<float> sale_price;
 vector<float> purchase_cost;
 float unitry_cost_trans[deliverers][receivers];
 int block[2];
+
 bool isBalanced();
 void readFromTxt();
 void saveToTxt();
 float** unitry_profit_fun();
 float** route_fun();
-int checkDeliv(int temp);
+pair<int,int> checkDeliv(); // zwraca dwa inty - "wspó³rzedne" komórki
+void print_supply_demand();
 float** unitry_profit;
 float** route;
+int** route_done;
+
 
 int main() {
 	
@@ -38,6 +43,7 @@ int main() {
 void readFromTxt() {
 	fstream file;
 	file.open("data.txt", ios::in);
+
 	float file_var;
 
 	for (int i = 0; i < deliverers; i++) {
@@ -80,7 +86,8 @@ void readFromTxt() {
 	file.close();
 }
 
-bool isBalanced() {
+bool isBalanced() { // zmiana na zwracania float'a z róznica - jak zwraca 0 to jest zbliansowany czyli w warunkach dodaje negacje
+					// i odrazu do wektora dodaje "fikcyjny popyt i fikcyjn¹ poda¿".
 	float sum_supply = 0;
 	float sum_demand = 0;
 
@@ -92,6 +99,23 @@ bool isBalanced() {
 		sum_demand += i;
 	}
 
+	float difference = sum_demand - sum_supply;
+
+	float fictional_demand = 50;
+	float fictional_supply = 50;
+
+	float try_fictional = sum_demand + fictional_demand - sum_supply;
+	if (try_fictional > 0) {
+		fictional_demand = try_fictional;
+	}
+	else {
+		fictional_supply = fictional_supply* (-1) + 50;
+	}
+
+
+	supply.push_back(fictional_demand);
+	demand.push_back(fictional_supply);
+
 	return (sum_demand == sum_supply);
 }
 
@@ -99,13 +123,9 @@ void saveToTxt() {
 	cout << "SAVED";
 }
 
-void PrintForDebug() {
-
-}
 
 float** unitry_profit_fun() {
 
-	//float** unitry_profit; 
 
 	if (isBalanced()) {
 		
@@ -118,7 +138,7 @@ float** unitry_profit_fun() {
 		}
 	}
 	else {
-		//add to matric fictional receiver and deliver
+		//add to matrix fictional receiver and deliver
 		unitry_profit = new float* [deliverers+1];
 		for (int i = 0; i < deliverers+1; i++) {
 			unitry_profit[i] = new float[receivers+1];
@@ -150,9 +170,20 @@ float** unitry_profit_fun() {
 }
 
 void print() {
+
+	cout << endl << "Route" << endl;
 	for (int i = 0; i < deliverers + 1; i++) {
 		for (int j = 0; j < receivers + 1; j++) {
 			cout << route[i][j] << " ";
+		}
+		cout << endl;
+	}
+
+
+	cout << endl << "Route done" << endl;
+	for (int i = 0; i < deliverers + 1; i++) {
+		for (int j = 0; j < receivers + 1; j++) {
+			cout << route_done[i][j] << " ";
 		}
 		cout << endl;
 	}
@@ -160,63 +191,101 @@ void print() {
 
 float** route_fun() {
 
-	if (isBalanced()) {
-		route = new float* [deliverers];
-		for (int i = 0; i < deliverers; i++) {
-			route[i] = new float[receivers];
-			for (int j = 0; j < receivers; j++) {
-				route[i][j] = 0;
-			}
+	int supply_size = sizeof(supply)/sizeof(float);
+	int demand_size = sizeof(demand) / sizeof(float);
+	// zrobi³em w ten sposób bo przy alokacji za pomoca zwyk³ego supply.size() by³y jakieœ krzaczki z rozmiarem pamiêci
+
+	route = new float* [supply_size];
+	route_done = new int* [supply_size];
+	for (int i = 0; i < supply.size(); i++) {
+		route[i] = new float[demand_size];
+		route_done[i] = new int[demand_size];
+		for (int j = 0; j < demand.size(); j++) {
+			route_done[i][j] = 0;
+			route[i][j] = 0;
 		}
 	}
-	else {
-		//add to matric fictional receiver and deliver
-		route = new float* [deliverers + 1];
-		for (int i = 0; i < deliverers + 1; i++) {
-			route[i] = new float[receivers + 1];
-			for (int j = 0; j < receivers + 1; j++) {
-				route[i][j] = 0;
-			}
-		}
 
-		int temp = 0;
-		for (int i = 0; i < deliverers; i++) {
-				if (unitry_profit[i][block[1]] < unitry_profit[i + 1][block[1]])
-					temp = i + 1;
-		}
-		
-		
-		cout << "S: " << supply[temp] << " D: " << demand[block[1]] << endl;
-		if (supply[temp] >= demand[block[1]]) {
-			route[temp][block[1]] = demand[block[1]];
-			demand[block[1]] = 0;
-			supply[temp] = supply[temp] - route[temp][block[1]];
-			print(); 
+
+	route_done[block[0]][block[1]] = 1; // odrazu zablokowanej trasie uniemozliwenie sprawdzenia, sama trasa i tak ma 0;
+
+
+	for (int i = 0; i < supply.size() * demand.size() - 1 ; i++) { //pêtla po wzsystkich elementach w tablicy
+		pair<int, int> cell_to_process = checkDeliv(); //zwracanie komórki, która ma byæ przetwarzana
+
+		cout << "Cell: " << cell_to_process.first << ", " << cell_to_process.second << endl;
+		cout << "S: " << supply[cell_to_process.first] << " D: " << demand[cell_to_process.second] << endl;
+
+		if (supply[cell_to_process.first] >= demand[cell_to_process.second]) {
+			route[cell_to_process.first][cell_to_process.second] = demand[cell_to_process.second];
+			supply[cell_to_process.first] = supply[cell_to_process.first] - demand[cell_to_process.second];
+			demand[cell_to_process.second] = 0;
+			print();
 		}
 		else
 		{
-			route[temp][block[1]] = supply[temp];
-			supply[temp] = 0;
-			demand[block[1]] = demand[block[1]] - route[temp][block[1]];
-			checkDeliv(temp);
-			print(); 
+			route[cell_to_process.first][cell_to_process.second] = supply[cell_to_process.first];
+			supply[cell_to_process.first] = 0;
+			demand[cell_to_process.second] = demand[cell_to_process.second] - route[cell_to_process.first][cell_to_process.second];
+			print();
+
 		}
-		
+		print_supply_demand();
 	}
-	
 	return route;
 }
 
-int checkDeliv(int temp) {	//przeszukaæ ponownie tablice za wyj¹tkiem tego temp co by³o wczeœnej
-	int j = temp;
-	for (int i = 0; i < deliverers; i++) {
-		if (i != j)
-		{
-			if (unitry_profit[i][block[1]] < unitry_profit[i + 1][block[1]])
-				temp = i + 1;
-			else
-				temp = i;
+pair<int, int> checkDeliv() {	//przeszukaæ ponownie tablice za wyj¹tkiem tego temp co by³o wczeœnej
+
+	// najpierw zablokowane trasy
+	int temp_supply = -1;
+	int temp_demand = block[1];
+	float profit_value_max = -1000000000000; //g³upie wiem
+
+	for (int i = 0; i < supply.size(); i++) {
+		if (route_done[i][block[1]] == 0) {
+			if (profit_value_max < unitry_profit[i][block[1]]) {
+				temp_supply = i;
+				profit_value_max = unitry_profit[i][block[1]];
+
+			}	
 		}
 	}
-	return temp;
+
+	if (temp_supply != -1) { // jak jest rowne -1 to znaczy ¿e nie zosta³o przydzielone czyli odbiorca z priorytetem przydzielony
+		route_done[temp_supply][temp_demand] = 1;
+		return pair<int, int>(temp_supply, temp_demand);
+	}
+
+	temp_demand = -1;
+
+	for (int i = 0; i < supply.size(); i++) {
+		for (int j = 0; j < demand.size(); j++) {
+			if (route_done[i][j] == 0) {
+				if (profit_value_max < unitry_profit[i][j]) {
+					temp_supply = i;
+					temp_demand = j;
+					profit_value_max = unitry_profit[i][j];
+				}
+			}
+		}
+	}
+
+	route_done[temp_supply][temp_demand] = 1;
+	return pair<int, int>(temp_supply, temp_demand);
+}
+
+void print_supply_demand() {
+	
+	cout << "Suppliers: ";
+	for (auto i : supply) {
+		cout << i << " ";
+	}
+	cout << endl;
+
+	cout << "Receivers: ";
+	for (auto i : demand) {
+		cout << i << " ";
+	}
+	cout << endl;
 }
