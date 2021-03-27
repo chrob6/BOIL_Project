@@ -122,7 +122,13 @@ bool isBalanced() { // zmiana na zwracania float'a z róznica - jak zwraca 0 to j
 }
 
 void saveToTxt() {
-	cout << "SAVED";
+	ofstream save("wyniki.txt");
+	save << "Profits: "<<endl;
+	for (auto i : profits) {
+		save << i << " ";
+	}
+	save << endl;
+	save.close();
 }
 
 
