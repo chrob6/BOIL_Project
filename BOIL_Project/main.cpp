@@ -9,43 +9,49 @@ using namespace std;
 
 const int deliverers = 2; // 3
 const int receivers = 3; // 2
+
 vector<float> supply; //podaz 
 vector<float> demand; //popyt
 vector<float> transport_cost;
 vector<float> sale_price;
 vector<float> purchase_cost;
 vector<float> profits;
+
 float unitry_cost_trans[deliverers][receivers];
 int block[2];
-
-bool isBalanced();
-void readFromTxt();
-void saveToTxt();
-void print();
-float** unitry_profit_fun();
-void route_fun();
-pair<int,int> checkDeliv(); // zwraca dwa inty - "wspó³rzedne" komórki
-void print_supply_demand();
-void calculate_profit();
 float** unitry_profit;
 float** route;
 int** route_done;
-
 float* alfa;
 float* beta;
 float** delta;
+
+void readFromTxt();
+bool isBalanced();
+void saveToTxt();
+
+void route_fun();
+pair<int,int> checkDeliv(); // zwraca dwa inty - "wspó³rzedne" komórki
 void init_alfa_beta();
+
+void calculate_profit();
 void calculate_alfa_beta();
-void print_alfa_beta();
 bool calculate_delta();
-void print_delta();
+
+float** unitry_profit_fun();
 pair<int, int> bad_delta();
 pair<int, int>* find_new_cycle(pair<int, int> bad_delta);
 void change_unitary_route(pair<int, int>* cycle);
 
+//prints
+bool print_to_console = false; 
+void print_delta();
+void print_alfa_beta();
+void print_supply_demand();
+void print_route();
+
 int main() {
 	
-	bool running = true;
 	readFromTxt();
 	unitry_profit_fun();
 	route_fun();
@@ -57,15 +63,15 @@ int main() {
 		if (calculate_delta()) {
 			break;
 		}
-		print_delta();
 
-		print();
+		if (print_to_console) {
+			print_delta();
+			print_route();
+		}
+
 		change_unitary_route(find_new_cycle(bad_delta()));
 	}
-
 	saveToTxt();
-	// #coWyWiecieOKomlikowaniuSobieKodu
-
 
 	return 1;
 }
@@ -110,7 +116,10 @@ void readFromTxt() {
 	for (int i = 0; i < 2; i++) {
 		file >> file_var;
 		block[i]= file_var;
-		cout << block[i] << " " << endl;
+
+		if (print_to_console) {
+			cout << block[i] << " " << endl;
+		}
 	}
 
 	file.close();
@@ -152,13 +161,23 @@ bool isBalanced() { // zmiana na zwracania float'a z róznica - jak zwraca 0 to j
 void saveToTxt() {
 	ofstream save("wyniki.txt");
 	save << "Profits: "<<endl;
-	cout << "Profits: " << endl;
+
+	if (print_to_console) {
+		cout << "Profits: " << endl;
+	}
+
 	for (auto i : profits) {
-		cout << i << " ";
+
+		if (print_to_console) {
+			cout << i << " ";
+		}
 		save << i << " ";
 	}
 	save << endl;
-	cout << endl;
+
+	if (print_to_console) {
+		cout << endl;
+	}
 	save.close();
 
 	float max_profit = 0;
@@ -167,9 +186,10 @@ void saveToTxt() {
 			max_profit = i;
 		}
 	}
-	cout << endl << "MAX Profit: " << max_profit <<endl;
+	if (print_to_console) {
+		cout << endl << "MAX Profit: " << max_profit << endl;
+	}
 }
-
 
 float** unitry_profit_fun() {
 
@@ -207,16 +227,21 @@ float** unitry_profit_fun() {
 	// tylko dla nie zbilansowanego!!!!
 	for (int i = 0; i < deliverers + 1; i++) {
 		for (int j = 0; j < receivers + 1; j++) {
-			cout << unitry_profit[i][j] << " ";
-		}
-		cout << endl;
-	}
 
+			if (print_to_console) {
+				cout << unitry_profit[i][j] << " ";
+			}
+		}
+		if (print_to_console) {
+			cout << endl;
+		}
+	}
 
 	return unitry_profit;
 }
 
-void print() {
+void print_route() {
+
 
 	cout << endl << "Route" << endl;
 	for (int i = 0; i < deliverers + 1; i++) {
@@ -225,7 +250,6 @@ void print() {
 		}
 		cout << endl;
 	}
-
 
 	cout << endl << "Route done" << endl;
 	for (int i = 0; i < deliverers + 1; i++) {
@@ -258,24 +282,34 @@ void route_fun() {
 	for (int i = 0; i < supply.size() * demand.size() - 1 ; i++) { //pêtla po wzsystkich elementach w tablicy
 		pair<int, int> cell_to_process = checkDeliv(); //zwracanie komórki, która ma byæ przetwarzana
 
-		cout << "Cell: " << cell_to_process.first << ", " << cell_to_process.second << endl;
-		cout << "S: " << supply[cell_to_process.first] << " D: " << demand[cell_to_process.second] << endl;
+		if (print_to_console) {
+			cout << "Cell: " << cell_to_process.first << ", " << cell_to_process.second << endl;
+			cout << "S: " << supply[cell_to_process.first] << " D: " << demand[cell_to_process.second] << endl;
+		}
 
 		if (supply[cell_to_process.first] >= demand[cell_to_process.second]) {
 			route[cell_to_process.first][cell_to_process.second] = demand[cell_to_process.second];
 			supply[cell_to_process.first] = supply[cell_to_process.first] - demand[cell_to_process.second];
 			demand[cell_to_process.second] = 0;
-			print();
+
+			if (print_to_console) {
+				print_route();
+			}
 		}
 		else
 		{
 			route[cell_to_process.first][cell_to_process.second] = supply[cell_to_process.first];
 			supply[cell_to_process.first] = 0;
 			demand[cell_to_process.second] = demand[cell_to_process.second] - route[cell_to_process.first][cell_to_process.second];
-			print();
+
+			if (print_to_console) {
+				print_route();
+			}
 
 		}
-		print_supply_demand();
+		if (print_to_console) {
+			print_supply_demand();
+		}
 	}
 }
 
@@ -343,11 +377,14 @@ void calculate_profit() {
 	}
 	
 	profits.push_back(profit);
-	cout << "Profits: ";
-	for (auto i : profits) {
-		cout << i << " ";
+
+	if (print_to_console) {
+		cout << "Profits: ";
+		for (auto i : profits) {
+			cout << i << " ";
+		}
+		cout << endl;
 	}
-	cout << endl;
 }
 
 void init_alfa_beta() {
@@ -387,7 +424,9 @@ void calculate_alfa_beta() {
 		}
 
 		for (int j = 0; j < supply.size(); j++) {
-			cout << next_index_to_calculate << " , " << j << endl;
+			if (print_to_console) {
+				cout << next_index_to_calculate << " , " << j << endl;
+			}
 			if (route[j][next_index_to_calculate] != 0) {
 				try_ = unitry_profit[j][next_index_to_calculate];
 
@@ -396,7 +435,9 @@ void calculate_alfa_beta() {
 				}
 			}
 		}
-		print_alfa_beta();
+		if (print_to_console) {
+			print_alfa_beta();
+		}
 	}
 
 }
@@ -457,16 +498,25 @@ void print_delta() {
 }
 
 pair<int, int> bad_delta() {
-	cout << endl << " Bad delta" << endl;
+
+	if (print_to_console) {
+		cout << endl << " Bad delta" << endl;
+	}
 	for (int i = 0; i < supply.size(); i++) {
 		for (int j = 0; j < demand.size(); j++) {
 
 			if (delta[i][j] > -1) {
-				cout << delta[i][j] << " ";
+
+				if (print_to_console) {
+					cout << delta[i][j] << " ";
+				}
 				return pair<int, int>(i, j);
 			}
 		}
-		cout << endl;
+
+		if (print_to_console) {
+			cout << endl;
+		}
 	}
 	
 	return pair<int, int>(-1, -1);
@@ -502,16 +552,17 @@ pair<int, int>* find_new_cycle(pair<int, int> bad_delta) {
 		}
 	}
 
-	cout << endl << "Cycle to change" << endl;
-	for (int j = 0; j <4; j++) {
-		cout << cycle_to_change[j].first << cycle_to_change[j].second << endl;
+	if (print_to_console) {
+		cout << endl << "Cycle to change" << endl;
+		for (int j = 0; j < 4; j++) {
+			cout << cycle_to_change[j].first << cycle_to_change[j].second << endl;
+		}
 	}
 
 	return cycle_to_change;
 }
 
 void change_unitary_route(pair<int, int>* cycle) {
-	// 00 02 10 21
 
 	float value_to_cycle; 
 	if (route[cycle[1].first][cycle[1].second] <= route[cycle[2].first][cycle[2].second]) {
@@ -528,5 +579,7 @@ void change_unitary_route(pair<int, int>* cycle) {
 	route[cycle[1].first][cycle[1].second] = route[cycle[1].first][cycle[1].second] - value_to_cycle;
 	route[cycle[3].first][cycle[3].second] = route[cycle[3].first][cycle[3].second] + value_to_cycle;
 
-	print();
+	if (print_to_console) {
+		print_route();
+	}
 }
