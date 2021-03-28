@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <utility>
+#include<iomanip>
 
 using namespace std;
 
@@ -159,8 +160,31 @@ bool isBalanced() { // zmiana na zwracania float'a z róznica - jak zwraca 0 to j
 }
 
 void saveToTxt() {
-	ofstream save("wyniki.txt");
-	save << "Profits: "<<endl;
+	/*ofstream save("wyniki.txt");
+	save << "Unitry profit begining"<<endl;
+	for (int i = 0; i < deliverers + 1; i++) {
+		for (int j = 0; j < receivers + 1; j++) {
+			save << setw(4) << unitry_profit[i][j] << " |";
+		}
+		save << endl;
+	}
+	save.close();*/
+	ofstream save("wyniki.txt" );
+	save <<"Unit profits"<<endl;
+	for (int i = 0; i < deliverers + 1; i++) {
+		for (int j = 0; j < receivers + 1; j++) {
+			save << setw(4) << unitry_profit[i][j] << " |";
+		}
+		save << endl;
+	}
+	save <<endl <<"Optimal route" << endl;
+	for (int i = 0; i < deliverers + 1; i++) {
+		for (int j = 0; j < receivers + 1; j++) {
+			save << setw(4) << route[i][j] << " |";
+		}
+		save << endl;
+	}
+	save <<endl<<"Profits: "<<endl;
 
 	if (print_to_console) {
 		cout << "Profits: " << endl;
@@ -178,7 +202,6 @@ void saveToTxt() {
 	if (print_to_console) {
 		cout << endl;
 	}
-	save.close();
 
 	float max_profit = 0;
 	for (auto i : profits) {
@@ -186,9 +209,13 @@ void saveToTxt() {
 			max_profit = i;
 		}
 	}
+	save << endl << "MAX Profit: " << max_profit << endl;
 	if (print_to_console) {
 		cout << endl << "MAX Profit: " << max_profit << endl;
 	}
+
+	save.close();
+	
 }
 
 float** unitry_profit_fun() {
