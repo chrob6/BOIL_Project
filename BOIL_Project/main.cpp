@@ -34,6 +34,7 @@ void saveToTxt();
 void route_fun();
 pair<int,int> checkDeliv(); // zwraca dwa inty - "wspó³rzedne" komórki
 void init_alfa_beta();
+void addFictional();
 
 void calculate_profit();
 void calculate_alfa_beta();
@@ -45,7 +46,7 @@ pair<int, int>* find_new_cycle(pair<int, int> bad_delta);
 void change_unitary_route(pair<int, int>* cycle);
 
 //prints
-bool print_to_console = false; 
+bool print_to_console = true; 
 void print_delta();
 void print_alfa_beta();
 void print_supply_demand();
@@ -130,6 +131,7 @@ bool isBalanced() { // zmiana na zwracania float'a z róznica - jak zwraca 0 to j
 					// i odrazu do wektora dodaje "fikcyjny popyt i fikcyjn¹ poda¿".
 	float sum_supply = 0;
 	float sum_demand = 0;
+	bool balanced;
 
 	for (auto i : supply) {
 		sum_supply += i;
@@ -139,24 +141,34 @@ bool isBalanced() { // zmiana na zwracania float'a z róznica - jak zwraca 0 to j
 		sum_demand += i;
 	}
 
-	float difference = sum_demand - sum_supply;
-
-	float fictional_demand = 50;
-	float fictional_supply = 50;
-
-	float try_fictional = sum_demand + fictional_demand - sum_supply;
-	if (try_fictional > 0) {
-		fictional_demand = try_fictional;
+	if (sum_demand == sum_supply) {
+		balanced = true;
 	}
 	else {
-		fictional_supply = fictional_supply* (-1) + 50;
+		balanced = false;
 	}
 
+	return balanced;
+}
+
+void addFictional() {
+
+	float sum_supply = 0;
+	float sum_demand = 0;
+
+	for (auto i : supply) {
+		sum_supply += i;
+	}
+
+	for (auto i : demand) {
+		sum_demand += i;
+	}
+
+	float fictional_demand = sum_supply;
+	float fictional_supply = sum_demand;
 
 	supply.push_back(fictional_demand);
 	demand.push_back(fictional_supply);
-
-	return (sum_demand == sum_supply);
 }
 
 void saveToTxt() {
@@ -232,6 +244,8 @@ float** unitry_profit_fun() {
 		}
 	}
 	else {
+
+		addFictional();
 		//add to matrix fictional receiver and deliver
 		unitry_profit = new float* [deliverers+1];
 		for (int i = 0; i < deliverers+1; i++) {
@@ -363,8 +377,25 @@ pair<int, int> checkDeliv() {	//przeszukaæ ponownie tablice za wyj¹tkiem tego te
 	}
 	temp_demand = -1;
 
-	for (int i = 0; i < supply.size(); i++) {
-		for (int j = 0; j < demand.size(); j++) {
+
+	// tu chyba trzeba zrobiæ warunek czy jest zbalansowany przyk³ad czy nie ale mo¿e te¿ dobrze policzyæ dla zblilansowanego ale nie dla ka¿dego przypadku.
+	// 	   done(nie testowane)
+
+	//rzeczywiœci
+	int supply_size;
+	int demand_size;
+	if (isBalanced()) {
+		supply_size = supply.size();
+		demand_size = demand.size();
+	} 
+	else
+	{
+		supply_size = supply.size() - 1;
+		demand_size = demand.size() - 1;
+	}
+
+	for (int i = 0; i < supply_size; i++) {
+		for (int j = 0; j < demand_size; j++) {
 			if (route_done[i][j] == 0) {
 				if (profit_value_max < unitry_profit[i][j]) {
 					temp_supply = i;
@@ -375,8 +406,43 @@ pair<int, int> checkDeliv() {	//przeszukaæ ponownie tablice za wyj¹tkiem tego te
 		}
 	}
 
+	if (temp_demand != -1) {
+		route_done[temp_supply][temp_demand] = 1;
+		return pair<int, int>(temp_supply, temp_demand);
+	}
+
+	//fikcyjni
+	int FD = supply.size() - 1;
+	for (int j = 0; j < demand.size() ; j++) {
+		if (route_done[FD][j] == 0) {
+			if (profit_value_max < unitry_profit[FD][j]) {
+				temp_supply = FD;
+				temp_demand = j;
+				profit_value_max = unitry_profit[FD][j];
+			}
+		}
+	}
+
+	if (temp_demand != -1) {
+		route_done[temp_supply][temp_demand] = 1;
+		return pair<int, int>(temp_supply, temp_demand);
+	}
+
+	int FO = demand.size() - 1;
+	for (int j = 0; j < supply.size(); j++) {
+		if (route_done[j][FO] == 0) {
+			if (profit_value_max < unitry_profit[j][FO]) {
+				temp_supply = j;
+				temp_demand = FO;
+				profit_value_max = unitry_profit[j][FO];
+			}
+		}
+	}
+	
+	
 	route_done[temp_supply][temp_demand] = 1;
 	return pair<int, int>(temp_supply, temp_demand);
+	
 }
 
 void print_supply_demand() {
