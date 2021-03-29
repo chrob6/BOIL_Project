@@ -167,8 +167,8 @@ void addFictional() {
 	float fictional_demand = sum_supply;
 	float fictional_supply = sum_demand;
 
-	supply.push_back(fictional_demand);
-	demand.push_back(fictional_supply);
+	supply.push_back(fictional_supply);
+	demand.push_back(fictional_demand);
 }
 
 void saveToTxt() {
@@ -185,7 +185,10 @@ void saveToTxt() {
 	save <<"Unit profits"<<endl;
 	for (int i = 0; i < deliverers + 1; i++) {
 		for (int j = 0; j < receivers + 1; j++) {
-			save << setw(4) << unitry_profit[i][j] << " |";
+			if(unitry_profit[i][j]== -100)
+				save << setw(4) << "-M" << " |";
+			else
+				save << setw(4) << unitry_profit[i][j] << " |";
 		}
 		save << endl;
 	}
